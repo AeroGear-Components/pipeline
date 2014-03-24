@@ -1,4 +1,4 @@
-/*! AeroGear JavaScript Library - v1.3.2 - 2014-01-28
+/*! AeroGear JavaScript Library - v1.4.0 - 2014-03-24
 * https://github.com/aerogear/aerogear-js
 * JBoss, Home of Professional Open Source
 * Copyright Red Hat, Inc., and individual contributors
@@ -63,11 +63,6 @@ AeroGear.Core = function() {
                         // Merge the Module( pipeline, datamanger, ... )config with the adapters settings
                         current.settings = AeroGear.extend( current.settings || {}, this.config );
 
-                        // Compatibility fix for deprecation of recordId in Pipeline and DataManager constructors
-                        // Added in 1.3 to remove in 1.4
-                        current.settings.recordId = current.settings.recordId || current.recordId;
-                        // End compat fix
-
                         collection[ current.name ] = AeroGear[ this.lib ].adapters[ current.type || this.type ]( current.name, current.settings );
                     }
                 }
@@ -80,11 +75,6 @@ AeroGear.Core = function() {
             // Merge the Module( pipeline, datamanger, ... )config with the adapters settings
             // config is an object so use that signature
             config.settings = AeroGear.extend( config.settings || {}, this.config );
-
-            // Compatibility fix for deprecation of recordId in Pipeline and DataManager constructors
-            // Added in 1.3 to remove in 1.4
-            config.settings.recordId = config.settings.recordId || config.recordId;
-            // End compat fix
 
             collection[ config.name ] = AeroGear[ this.lib ].adapters[ config.type || this.type ]( config.name, config.settings );
         }
@@ -202,8 +192,8 @@ AeroGear.extend = function( obj1, obj2 ) {
     @param {String|Array|Object} [config] - A configuration for the pipe(s) being created along with the Pipeline. If an object or array containing objects is used, the objects can have the following properties:
     @param {String} config.name - the name that the pipe will later be referenced by
     @param {String} [config.type="Rest"] - the type of pipe as determined by the adapter used
-    @param {String} [config.recordId="id"] - @deprecated the identifier used to denote the unique id for each record in the data associated with this pipe
     @param {Object} [config.authenticator=null] - the AeroGear.auth object used to pass credentials to a secure endpoint
+    @param {Object} [settings.authorizer=null] - the AeroGear.authz object used to pass credentials to a secure endpoint
     @param {Object} [config.settings={}] - the settings to be passed to the adapter. For specific settings, see the documentation for the adapter you are using.
     @returns {Object} pipeline - The created Pipeline containing any pipes that may have been created
     @example
@@ -216,7 +206,7 @@ var pl2 = AeroGear.Pipeline( "tasks" );
 // Create multiple pipes using the default adapter
 var pl3 = AeroGear.Pipeline( [ "tasks", "projects" ] );
 
-//Create a new REST pipe with a custom ID using an object
+// Create a new REST pipe with a custom ID using an object
 var pl4 = AeroGear.Pipeline({
     name: "customPipe",
     type: "rest",
@@ -225,7 +215,7 @@ var pl4 = AeroGear.Pipeline({
     }
 });
 
-//Create multiple REST pipes using objects
+// Create multiple REST pipes using objects
 var pl5 = AeroGear.Pipeline([
     {
         name: "customPipe",
@@ -285,7 +275,6 @@ AeroGear.Pipeline.adapters = {};
     @constructs AeroGear.Pipeline.adapters.Rest
     @param {String} pipeName - the name used to reference this particular pipe
     @param {Object} [settings={}] - the settings to be passed to the adapter
-    @param {Object} [settings.authenticator=null] - @deprecated the AeroGear.auth object used to pass credentials to a secure endpoint
     @param {String} [settings.baseURL] - defines the base URL to use for an endpoint
     @param {String} [settings.contentType="application/json"] - the default type of content being sent to the server
     @param {String} [settings.dataType="json"] - the default type of data expected to be returned from the server
@@ -300,17 +289,17 @@ AeroGear.Pipeline.adapters = {};
     @param {Object} [settings.xhrFields] - specify extra xhr options, like the withCredentials flag
     @returns {Object} The created pipe
     @example
-    //Create an empty pipeline
+    // Create an empty pipeline
     var pipeline = AeroGear.Pipeline();
 
-    //Add a new Pipe with a custom baseURL, custom endpoint and default paging turned on
+    // Add a new Pipe with a custom baseURL, custom endpoint and default paging turned on
     pipeline.add( "customPipe", {
         baseURL: "http://customURL.com",
         endpoint: "customendpoint",
         pageConfig: true
     });
 
-    //Add a new Pipe with a custom paging options
+    // Add a new Pipe with a custom paging options
     pipeline.add( "customPipe", {
         pageConfig: {
             metadataLocation: "header",
@@ -338,7 +327,7 @@ AeroGear.Pipeline.adapters.Rest = function( pipeName, settings ) {
             xhrFields: settings.xhrFields
         },
         recordId = settings.recordId || "id",
-        authenticator = settings.authenticator || null,
+        authorizer = settings.authorizer || null,
         type = "Rest",
         pageConfig = settings.pageConfig,
         timeout = settings.timeout ? settings.timeout * 1000 : 60000;
@@ -360,8 +349,8 @@ AeroGear.Pipeline.adapters.Rest = function( pipeName, settings ) {
         @augments Rest
         @returns {AeroGear.Authenticator}
      */
-    this.getAuthenticator = function() {
-        return authenticator;
+    this.getAuthorizer = function() {
+        return authorizer;
     };
 
     /**
@@ -528,7 +517,7 @@ var filteredData = myPipe.read({
 });
 
     @example
-//JSONP - Default JSONP call to a JSONP server
+// JSONP - Default JSONP call to a JSONP server
 myPipe.read({
     jsonp: true,
     success: function( data ){
@@ -536,7 +525,7 @@ myPipe.read({
     }
 });
 
-//JSONP - JSONP call with a changed callback parameter
+// JSONP - JSONP call with a changed callback parameter
 myPipe.read({
     jsonp: {
         callback: "jsonp"
@@ -547,7 +536,7 @@ myPipe.read({
 });
 
     @example
-//Paging - using the default weblinking protocal
+// Paging - using the default weblinking protocal
 var defaultPagingPipe = AeroGear.Pipeline([{
     name: "webLinking",
     settings: {
@@ -556,9 +545,9 @@ var defaultPagingPipe = AeroGear.Pipeline([{
     }
 }]).pipes[0];
 
-//Get a limit of 2 pieces of data from the server, starting from the first page
-//Calling the "next" function will get the next 2 pieces of data, if available.
-//Similarily, calling the "previous" function will get the previous 2 pieces of data, if available
+// Get a limit of 2 pieces of data from the server, starting from the first page
+// Calling the "next" function will get the next 2 pieces of data, if available.
+// Similarily, calling the "previous" function will get the previous 2 pieces of data, if available
 defaultPagingPipe.read({
     offsetValue: 1,
     limitValue: 2,
@@ -574,7 +563,7 @@ defaultPagingPipe.read({
     }
 });
 
-//Create a new Pipe with a custom paging options
+// Create a new Pipe with a custom paging options
 var customPagingPipe = AeroGear.Pipeline([{
     name: "customPipe",
     settings: {
@@ -586,7 +575,7 @@ var customPagingPipe = AeroGear.Pipeline([{
     }
 }]).pipes[0];
 
-//Even with custom options, you use "next" and "previous" the same way
+// Even with custom options, you use "next" and "previous" the same way
 customPagingPipe.read({
     offsetValue: 1,
     limitValue: 2,
@@ -687,7 +676,11 @@ AeroGear.Pipeline.adapters.Rest.prototype.read = function( options ) {
         }
     }
 
-    return jQuery.ajax( jQuery.extend( {}, this.getAjaxSettings(), extraOptions ) );
+    if( !this.getAuthorizer() ) {
+        return jQuery.ajax( jQuery.extend( {}, this.getAjaxSettings(), extraOptions ) );
+    } else {
+        return this.getAuthorizer().execute( jQuery.extend( {}, options, extraOptions ) );
+    }
 };
 
 /**
@@ -784,7 +777,7 @@ AeroGear.Pipeline.adapters.Rest.prototype.save = function( data, options ) {
             formData.append( key, data[ key ] );
 
             if( data[ key ] instanceof File || data[ key ] instanceof Blob ) {
-                //Options to tell jQuery not to process data or worry about content-type.
+                // Options to tell jQuery not to process data or worry about content-type.
                 extraOptions.contentType = false;
                 extraOptions.processData = false;
             }
@@ -812,7 +805,11 @@ AeroGear.Pipeline.adapters.Rest.prototype.save = function( data, options ) {
         extraOptions.data = JSON.stringify( extraOptions.data );
     }
 
-    return jQuery.ajax( jQuery.extend( {}, this.getAjaxSettings(), extraOptions ) );
+    if( !this.getAuthorizer() ) {
+        return jQuery.ajax( jQuery.extend( {}, this.getAjaxSettings(), extraOptions ) );
+    } else {
+        return this.getAuthorizer().execute( jQuery.extend( {}, options, extraOptions ) );
+    }
 };
 
 /**
@@ -898,6 +895,10 @@ AeroGear.Pipeline.adapters.Rest.prototype.remove = function( toRemove, options )
         timeout: this.getTimeout()
     };
 
-    return jQuery.ajax( jQuery.extend( {}, ajaxSettings, extraOptions ) );
+    if( !this.getAuthorizer() ) {
+        return jQuery.ajax( jQuery.extend( {}, this.getAjaxSettings(), extraOptions ) );
+    } else {
+        return this.getAuthorizer().execute( jQuery.extend( {}, options, extraOptions ) );
+    }
 };
 })( this );
